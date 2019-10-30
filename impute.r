@@ -8,7 +8,7 @@ meta_tbl <- read.table(file = 'GrubmanData/scRNA_metadata.csv', sep = ',', heade
 rownames(meta_tbl) <- meta_tbl[,1]
 meta_tbl[,1] <- NULL
 
-tbl <- read.table(file = 'GrubmanData/impute.csv', sep = ',', header = TRUE)
+tbl <- read.table(file = 'GrubmanData/DeepImpute.csv', sep = ',', header = TRUE)
 rownames(tbl) = tbl[,1]
 tbl[,1] <- NULL
 
@@ -46,7 +46,7 @@ d2 = density(mydata_norm@assays$RNA@data["LRP1B",][s1 & s2 & s3])
 plot(d2)
 
 
-get.variance <- function(gene, patient, cell_type) {
+get.counts <- function(gene, patient, cell_type) {
   s1 <- meta_tbl[names(mydata_norm@assays$RNA@data[gene,]),6] == cell_type
   #s2 <- as.vector(raw_tbl[gene,][names(mydata_norm@assays$RNA@data[gene,])] != 0)
   s3 <- meta_tbl[names(mydata_norm@assays$RNA@data[gene,]),2] == patient
@@ -56,20 +56,36 @@ get.variance <- function(gene, patient, cell_type) {
   return(count.list)
 }
 
-cell_pop_vector = c()
-for (gene in rownames(tbl)[1:30])
-{
-  for (patient in c("AD1", "AD2", "AD3", "AD4", "AD5", "AD6", "AD-un", "Ct1", "Ct2", "Ct3", "Ct4", "Ct5", "Ct6", "Ct-un"))
+compare.variance <- function(gene, cell_type) {
+  AD.var.scores <- c()
+  for (AD_patient in c("AD1", "AD2", "AD3", "AD4", "AD5", "AD6", "AD-un"))
   {
-    for (cell_type in c("astro", "doublet", "endo", "mg", "neuron", "oligo", "OPC", "unID"))
-    {
-      s1 <- meta_tbl[names(mydata_norm@assays$RNA@data[gene,]),6] == cell_type
-      s2 <- as.vector(raw_tbl[gene,][names(mydata_norm@assays$RNA@data[gene,])] != 0)
-      s3 <- meta_tbl[names(mydata_norm@assays$RNA@data[gene,]),2] == patient
-      cell_pop_vector <- c(cell_pop_vector, as.vector(mydata_norm@assays$RNA@data[gene,][s1 & s2 & s3]))
-      print(names(cell_pop_vector))
-      print()
-      names(cell_pop_vector) <- c(names(cell_pop_vector), paste(gene,patient,cell_type,sep="_"))
-    }
+    print(AD_patient)
+    AD.var.scores <- c(AD.var.scores, var(get.counts(gene, AD_patient, cell_type))) 
   }
+  Ct.var.scores <- c()
+  for (Ct_patient in c("Ct1", "Ct2", "Ct3", "Ct4", "Ct5", "Ct6", "Ct-un"))
+  {
+    print(Ct_patient)
+    Ct.var.scores <- c(Ct.var.scores, var(get.counts(gene, Ct_patient, cell_type))) 
+  }
+  return(list(Ct.var.scores, AD.var.scores))
 }
+
+# cell_pop_vector = c()
+# for (gene in rownames(tbl)[1:30])
+# {
+#   for (patient in c("AD1", "AD2", "AD3", "AD4", "AD5", "AD6", "AD-un", "Ct1", "Ct2", "Ct3", "Ct4", "Ct5", "Ct6", "Ct-un"))
+#   {
+#     for (cell_type in c("astro", "doublet", "endo", "mg", "neuron", "oligo", "OPC", "unID"))
+#     {
+#       s1 <- meta_tbl[names(mydata_norm@assays$RNA@data[gene,]),6] == cell_type
+#       s2 <- as.vector(raw_tbl[gene,][names(mydata_norm@assays$RNA@data[gene,])] != 0)
+#       s3 <- meta_tbl[names(mydata_norm@assays$RNA@data[gene,]),2] == patient
+#       cell_pop_vector <- c(cell_pop_vector, as.vector(mydata_norm@assays$RNA@data[gene,][s1 & s2 & s3]))
+#       print(names(cell_pop_vector))
+#       print()
+#       names(cell_pop_vector) <- c(names(cell_pop_vector), paste(gene,patient,cell_type,sep="_"))
+#     }
+#   }
+# }
