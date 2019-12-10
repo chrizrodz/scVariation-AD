@@ -209,10 +209,14 @@ for (cell_type in c("Ast", "Mic", "Ex","In","Oli",))
   #enrich.df <- enrich.df[order(enrich.df$Combined.Score, decreasing = TRUE),]
   enrich.df$Term <- sapply(strsplit(as.character(enrich.df$Term), "\\(GO"), `[`, 1)
   enrich.df$LogP <- -log(enrich.df$Adjusted.P.value)
-  ggplot(data=enrich.df[1:5,], aes(x=reorder(Term,-LogP), y=LogP)) + geom_bar(stat="identity", fill="steelblue") + theme_minimal() + 
+  print(ggplot(data=enrich.df[1:5,], aes(x=reorder(Term,-LogP), y=LogP)) + geom_bar(stat="identity", fill="steelblue") + theme_minimal() + 
+          theme(axis.text.x = element_text(angle = 20, hjust = 1), axis.text = element_text(size=12)) + labs(title=paste0(cell_type," Pathway Enrichment"), x="GO Term", y="-Log P Value") + 
+          theme(axis.title=element_text(size=14,face="bold"), plot.margin = margin(1, 1, 1, 6, "cm"), plot.title = element_text(size=16,face="bold", hjust=0.5), axis.text.x = element_text(size=10)))
+  png(paste0(cell_type,"PathwayEnrichment.png"))
+  print(ggplot(data=enrich.df[1:5,], aes(x=reorder(Term,-LogP), y=LogP)) + geom_bar(stat="identity", fill="steelblue") + theme_minimal() + 
     theme(axis.text.x = element_text(angle = 20, hjust = 1), axis.text = element_text(size=12)) + labs(title=paste0(cell_type," Pathway Enrichment"), x="GO Term", y="-Log P Value") + 
-    theme(axis.title=element_text(size=14,face="bold"), plot.margin = margin(1, 1, 1, 6, "cm"), plot.title = element_text(size=16,face="bold", hjust=0.5), axis.text.x = element_text(size=10))
-  
+    theme(axis.title=element_text(size=14,face="bold"), plot.margin = margin(1, 1, 1, 6, "cm"), plot.title = element_text(size=16,face="bold", hjust=0.5), axis.text.x = element_text(size=10)))
+  dev.off()
 }
 
 
@@ -264,8 +268,10 @@ for (cell_type in c("Ast", "Mic", "Ex","In","Oli",))
       plot.title = element_text(size=16,face="bold", hjust=0.5))+
     coord_fixed()
   print(ggheatmap)
+  png(paste0(cell_type,"Correlation.png"))
+  print(ggheatmap)
+  dev.off()
 }
-
 
 
 
@@ -405,22 +411,49 @@ for (cell_type in c("Ast", "Mic","Ex","In"))
       mean.list[[patient_num]] <- NA
     }
   }
-  print(cell_type)
-  patient.info <- data.frame(patient.info.orig)
-  patient.info$mean.var <- unlist(mean.list)
-  patient_splits_impute[[cell_type]] <- patient.info[,]
-  patient.info[cell_counts < 100, "mean.var"] = NA
-  mean.list <- mean.list[!is.na(unlist(mean.list))]
-  control_pop <- unlist(mean.list[1:24])
-  ad_pop <- unlist(mean.list[25:48])
-  if(length(control_pop) > 10 && length(ad_pop) > 10)
+  
+  
+  patient.info <- patient.info.orig[,]
+  
+  id_maps <- read.csv("MathysData/id_mapping.csv")
+  count <- 1
+  for (unique_val in unique(id_maps$Subject))
   {
-    print(patient.info[!is.na(patient.info$mean.var),])
-    p <- ggplot(patient.info[!is.na(patient.info$mean.var),], aes(x=pathologic.diagnosis.of.AD, y=mean.var, fill=pathologic.diagnosis.of.AD)) + geom_boxplot()
-    print(p + scale_fill_manual(values=c("green","red"), name ="AD Diagnosis") + ggtitle(paste0(cell_type, " Transcriptional Noise")) + theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank()) + ylab("Transcriptional Noise"))
-    print(wilcox.test(x=as.numeric(patient.info[!is.na(patient.info$mean.var) & patient.info$pathologic.diagnosis.of.AD=="NO","mean.var"]),
-                      y=as.numeric(patient.info[!is.na(patient.info$mean.var) & patient.info$pathologic.diagnosis.of.AD=="YES","mean.var"])))
+    patient.info[patient.info$Subject==unique_val,"patient.num"] <- count
+    count = count + 1
   }
+  patient.info <- patient.info[order(patient.info$patient.num),]
+  patient.info$mean.var <- unlist(mean.list)
+  
+  
+  patient.info[patient.info$msex==0,"msex"] <- "FEMALE"
+  patient.info[patient.info$msex==1,"msex"] <- "MALE"
+  patient.info$pathologic.diagnosis.of.AD <- as.character(patient.info$pathologic.diagnosis.of.AD)
+  patient.info[patient.info$pathologic.diagnosis.of.AD=="YES","pathologic.diagnosis.of.AD"] <- "AD"
+  patient.info[patient.info$pathologic.diagnosis.of.AD=="NO","pathologic.diagnosis.of.AD"] <- "CTRL"
+  patient.info$pathologic.diagnosis.of.AD <- factor(patient.info$pathologic.diagnosis.of.AD, levels = c("CTRL","AD"),ordered=TRUE)
+  patient.info$combined <- paste(patient.info$msex, patient.info$pathologic.diagnosis.of.AD,sep = " ")
+  patient.info$combined <- factor(patient.info$combined, levels = c("FEMALE CTRL", "FEMALE AD", "MALE CTRL", "MALE AD"), ordered = TRUE)
+  p <- ggplot(patient.info[!is.na(patient.info$mean.var),], aes(x=combined, y=mean.var, fill=msex)) + geom_boxplot()
+  print(p + scale_fill_manual(values=c("pink","steelblue1"), name ="Sex") + ggtitle(paste0(cell_type, " Transcriptional Noise")) + theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank()) + ylab("Transcriptional Noise"))
+  print(wilcox.test(x=as.numeric(patient.info[!is.na(patient.info$mean.var) & patient.info$pathologic.diagnosis.of.AD=="AD" & patient.info$msex=="MALE","mean.var"]),
+                    y=as.numeric(patient.info[!is.na(patient.info$mean.var) & patient.info$pathologic.diagnosis.of.AD=="CTRL" & patient.info$msex=="FEMALE","mean.var"])))
+  
+  png(paste0(cell_type,"TranscriptionalNoiseSex.png"))
+  print(p + scale_fill_manual(values=c("pink","steelblue1"), name ="Sex") + ggtitle(paste0(cell_type, " Transcriptional Noise")) + theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank()) + ylab("Transcriptional Noise"))
+  dev.off()
+  
+  p <- ggplot(patient.info[!is.na(patient.info$mean.var),], aes(x=pathologic.diagnosis.of.AD, y=mean.var, fill=pathologic.diagnosis.of.AD)) + geom_boxplot()
+  print(p + scale_fill_manual(values=c("green","red"), name ="AD Diagnosis") + ggtitle(paste0(cell_type, " Transcriptional Noise")) + theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank()) + ylab("Transcriptional Noise"))
+  print(wilcox.test(x=as.numeric(patient.info[!is.na(patient.info$mean.var) & as.character(patient.info$pathologic.diagnosis.of.AD)=="AD","mean.var"]),
+                    y=as.numeric(patient.info[!is.na(patient.info$mean.var) & as.character(patient.info$pathologic.diagnosis.of.AD)=="CTRL","mean.var"])))
+  
+  
+  
+  png(paste0(cell_type,"TranscriptionalNoiseAD.png"))
+  print(p + scale_fill_manual(values=c("green","red"), name ="AD Diagnosis") + ggtitle(paste0(cell_type, " Transcriptional Noise")) + theme(plot.title = element_text(hjust = 0.5), axis.title.x = element_blank()) + ylab("Transcriptional Noise"))
+  dev.off()
+  
   save(patient_splits_impute, file="PatientNoiseData.Robj")
 }
 
