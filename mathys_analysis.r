@@ -300,7 +300,7 @@ for(gene.name in new.vector)
 
 #Start
 patient_splits_impute <- list()
-for (cell_type in c("Ast", "Mic","Ex","In"))
+for (cell_type in c("Ast", "Mic","Ex","In", "Oli"))
 {
   patient_num <- 1
   master_sparse <- as.data.frame(readMM(paste("MathysData/patient", patient_num, "_",cell_type,"_impute.mtx",sep="")))
